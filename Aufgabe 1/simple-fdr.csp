@@ -1,0 +1,55 @@
+-- Channel
+channel a,b,c,d,f
+
+-- Prozesse
+
+P = a -> b -> c -> SKIP
+Q = a -> ((c -> d -> SKIP) [] (b -> f -> SKIP))
+
+-- Alphabete
+Pa = {|a,b,c|}
+Qa = {|a,b,c,d,f|}
+
+
+-- Systeme
+
+S1 = P;Q
+S2 = P [|{|a,b|}|] Q
+S3 = P ||| Q
+S4 = P [] Q
+S5 = P /\ Q
+
+
+-- S1 -> Ablauf sequenziell mit t Übergang (im Trace aber nicht im Graph?)  Sequential Composition
+-- S2 -> Synchronisation über die Channel a und b
+-- S3 -> Interleaving von P und Q 
+-- S4 -> External Choice
+-- S5 -> Interrupt: Solange P bis Q etwas machen kann/möchte, dann übernimmt Q die Kontrolle (Bsp: exception handling)
+
+-- grunt work
+
+assert S1 [T= S2 -- false, a -> c
+assert S1 [T= S3 -- false, a -> a
+assert S1 [T= S4 -- false, a -> c
+assert S1 [T= S5 -- false, a -> a
+
+assert S2 [T= S1 -- false, a -> b -> c -> a
+assert S2 [T= S3 -- false, a -> a
+assert S2 [T= S4 -- false, a -> b -> f -> SKIP
+assert S2 [T= S5 -- false, a -> a
+
+assert S3 [T= S1 -- true
+assert S3 [T= S2 -- false, a -> b -> c -> f
+assert S3 [T= S4 -- false, a -> b -> f -> SKIP
+assert S3 [T= S5 -- false, a -> c -> d -> SKIP
+
+assert S4 [T= S1 -- false, a -> b -> c -> a
+assert S4 [T= S2 -- false, a -> b -> f
+assert S4 [T= S3 -- false, a -> a
+assert S4 [T= S5 -- false, a -> a
+
+assert S5 [T= S1 -- true , interrupt vor dem "-> SKIP"
+assert S5 [T= S2 -- false, a -> b -> c -> f
+assert S5 [T= S3 -- false, a -> c -> a
+assert S5 [T= S4 -- true
+

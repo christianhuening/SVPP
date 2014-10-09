@@ -1,0 +1,26 @@
+-- Channel Definition
+
+channel a,b,c,d
+
+
+-- Prozess Definition
+
+
+P = a -> b -> SKIP
+Q = a -> c -> STOP
+R = c -> d -> R
+
+-- Sys Definition
+
+SYS1 = (P [] Q) |~| R
+SYS2 = P [] Q
+SYS3 = P |~| Q
+SYS4 = P [] R
+SYS5 = P |~| R
+
+
+-- [] external Choice über Event
+-- [~] internal choice, ohne Einwirkung von Aussen 
+--     Im Graph oder Trace ein Schritt mehr über ein t
+-- SKIP positives/gewolltes terminieren
+-- STOP Deadlock/ungewolltes terminieren
