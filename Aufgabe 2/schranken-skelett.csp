@@ -1,40 +1,71 @@
-;; Spezifikation Schrankensystem mit Prüfungen
-;; Übung TH2, WS 11/12
+-- Spezifikation Schrankensystem mit Prfungen
+-- Übung TH2, WS 11/12
 
-;;----------
-;;Datentypen 
-;;---------- 
+------------
+--Datentypen 
+------------ 
 
- nametype ZId = {0,1,2,3}  
- nametype SegId = {l1,l2,r1,r2} ;; links 1 und 2, rechts 1 und 2 
- nametype SigStates = {r, g} ;; Signalzustand rot, grün 
- nametype SegState = {unten, oben, senken, heben };; Segmentzustand 
- channel zug_kommt, zug_rein, zug_raus: ZID 
- channel df_anfrage, df_freigabe: ZID  ;; Durchfahrt Anfrage und Freigabe 
- channel seg_senken, seg_heben, seg_unten, seg_oben: SegId
+nametype ZId = {0,1,2,3}  
+nametype SegId = {"l1","l2","r1","r2"} -- links 1 und 2, rechts 1 und 2 
+nametype SigStates = {"r", "g"} -- Signalzustand rot, grün 
+nametype SegState = {"unten", "oben", "senken", "heben" }-- Segmentzustand 
+channel zug_kommt, zug_rein, zug_raus: ZId 
+channel df_anfrage, df_freigabe: ZId  -- Durchfahrt Anfrage und Freigabe 
+channel seg_senken, seg_heben, seg_unten, seg_oben: SegId
+channel wr_signal, rd_signal : SigStates
+------------
+--Basisprozesse
+------------ 
 
-;;----------
-;;Basisprozesse
-;;---------- 
-
-SEGMENT ( ) = 
-
-STEUER ( ) = 
-
-SIGNAL ( ) = 
-
-ZUG (  ) = 
-
-;;----------
-;;Gesamtsystem
-;;---------- 
-
-
-;;----------
-;;Prüfungen
-;;---------- 
-
-;; Zug fährt nur wenn alle Schranken unten sind
+SEGMENT(segId, segState) = (segState == "oben") & seg_senken.segId ->SEGMENT(segId, "senken")
+							[]
+							(segState == "unten") & seg_heben.segId -> SEGMENT(segId, "heben")
+							[]
+							(segState == "senken") & (seg_unten.segId -> SEGMENT(segId, "unten")
+													  []
+													  seg_heben.segId -> SEGMENT(segId, "heben"))
+							[]
+							(segState == "heben") & (seg_senken.segId -> SEGMENT(segId, "senken")
+													  []
+													  seg_oben.segId -> SEGMENT(segId, "oben"))
 
 
-;; Kein Zug ist dauerhaft blockiert
+
+
+
+
+STEUER () = df_anfrage?zId 
+			-> seg_senken."r1" -> seg_senken."r2" -> seg_unten."r1" -> seg_unten."r2"
+			-> seg_senken."l1" -> seg_senken."l2" -> seg_unten."l1" -> seg_unten."l2"
+			-> wr_signal!"g" 
+			-> df_freigabe.zId -> zug_rein.zId -> wr_signal!"r" -> zug_raus.zId 
+			-> seg_heben."r1" -> seg_heben."r2" -> seg_heben."l1" -> seg_heben."l2" 				-- TODO: gleichzetig ausführen
+			-> STEUER()
+
+SIGNAL (sigState) = rd_signal!sigState -> SIGNAL(sigState)
+					[]
+					wr_signal?x -> SIGNAL(x)
+				--	[]
+				--	(sigState == "g") & (zug_rein.zId -> SIGNAL("r"))
+				--	[]
+				---	(sigState == "r") & (SIGNAL("r")
+					--					[]
+					--					zug_raus.zId -> SIGNAL("g"))
+
+ZUG(zId) = zug_kommt!zId -> df_anfrage!zId -> df_freigabe.zId -> zug_rein.zId -> zug_raus!zId -> SKIP--ZUG(zId)  
+
+------------ 
+--Gesamtsystem
+------------ 
+
+SEGMENTE = (((SEGMENT("l1", "oben") [|{|seg_heben|}|] SEGMENT("l2", "oben")) [|{|seg_heben|}|]  SEGMENT("r1", "oben")) [|{|seg_heben|}|]  SEGMENT("r2", "oben"))
+SEGMENTE1 = (||| i:SegId @ SEGMENT(i,"oben"))
+SYS1 = (ZUG(0) [|{|zug_rein, zug_raus,df_anfrage, df_freigabe|}|] STEUER()) [|{|wr_signal, rd_signal, seg_senken, seg_heben, seg_unten|}|] (SIGNAL("r") ||| SEGMENTE1 )
+------------
+--Prüfungen
+------------ 
+
+-- Zug fährt nur wenn alle Schranken unten sind
+
+
+-- Kein Zug ist dauerhaft blockiert
