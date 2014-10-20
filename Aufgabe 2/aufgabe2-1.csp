@@ -11,10 +11,11 @@ STACK3(<h>^s) =
 
 
 
-assert STACK1 [T= STACK3(<>)
+assert STACK1 [T= STACK3(<>) -- false, kann mehr als STACK1, da der STACK3 bis zum Rand aufgefüllt werden kann und dieses erkannt wird.
+							 -- STACK1 pusht und pop'd nur
 
-assert STACK3(<>) [T= STACK1
+assert STACK3(<>) [T= STACK1 -- true, STACK3 bildet das einfache push-pop wechselspiel über die Alternativ-Klausel ab.
 
-assert STACK1 [F= STACK3(<>)
+assert STACK1 [F= STACK3(<>) -- false, STACK3 kann Fehler erzeugen, die STACK1 nicht kann, da STACK3 auch mehrfach pushen kann, bis der STACK voll ist
 
-assert STACK3(<>) [F= STACK1
+assert STACK3(<>) [F= STACK1 -- false, da STACK1 nach einem PUSH zwingend ein POP erwartet, STACK3 aber problemlos noch weiter pushen kann
