@@ -67,22 +67,13 @@ SYS1 = (ZUEGE [|{|zug_rein, zug_raus,df_anfrage, df_freigabe|}|] STEUER()) [|{|w
 ------------ 
 
 -- Zug fährt nur wenn alle Schranken unten sind
-SCHRANKENTEST = df_anfrage?zId -> seg_unten."r1" -> seg_unten."r2" -> seg_unten."l1" -> seg_unten."l2" -> zug_rein.zId -> SCHRANKENTEST
-assert SCHRANKENTEST [T= SYS1\{|zug_kommt, zug_raus, df_freigabe,  seg_senken, seg_heben, seg_oben, wr_signal, rd_signal|} 
+SCHRANKENTEST = df_anfrage?zId
 
---assert SCHRANKENTEST [F= SYS1\{|zug_kommt, zug_raus, df_freigabe,  seg_senken, seg_heben, seg_oben, wr_signal, rd_signal|} 
-
---assert SCHRANKENTEST [FD= SYS1\{|zug_kommt, zug_raus, df_freigabe,  seg_senken, seg_heben, seg_oben, wr_signal, rd_signal|} 
-
-
+-- -> seg_unten."r1" -> seg_unten."r2" -> seg_unten."l1" -> seg_unten."l2" ---> zug_rein.1
+--assert SCHRANKENTEST [T= SYS1\{|zug_kommt, zug_raus, df_freigabe,  seg_senken, seg_heben, seg_oben, wr_signal, rd_signal|} 
 
 -- Kein Zug ist dauerhaft blockiert
-ZUG2 = zug_rein?zId -> zug_raus!zId -> ZUG2
-assert ZUG2 [T= SYS1\{|df_anfrage, df_freigabe,  seg_senken, seg_heben, seg_unten, seg_oben, wr_signal, rd_signal, zug_kommt|} 
-
---assert ZUG2 [F= SYS1\{|df_anfrage, df_freigabe,  seg_senken, seg_heben, seg_unten, seg_oben, wr_signal, rd_signal, zug_kommt|} 
-
---assert ZUG2 [FD= SYS1\{|df_anfrage, df_freigabe,  seg_senken, seg_heben, seg_unten, seg_oben, wr_signal, rd_signal, zug_kommt|} 
+--ZUG2 = zug_kommt?zId -> zug_raus!zId -> SKIP
 --ZUG3(zId) = zug_kommt!zId -> df_anfrage!zId -> df_freigabe.zId -> zug_rein.zId -> zug_raus!zId -> ZUG3(zId)
 
 --ZUG [T= ZUG2
