@@ -8,8 +8,8 @@ STACK3(<h>^s) =
 	pop!h -> STACK3(s)
 	[]
 	(#s < (max-1)) & push?d -> STACK3(<d>^<h>^s)
-
-
+	-- if count(s) < 2 then push nach d -> Merge d,h,s
+ 
 
 assert STACK1 [T= STACK3(<>) -- false, kann mehr als STACK1, da der STACK3 bis zum Rand aufgefüllt werden kann und dieses erkannt wird.
 							 -- STACK1 pusht und pop'd nur
