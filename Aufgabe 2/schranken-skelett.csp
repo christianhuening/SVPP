@@ -75,8 +75,8 @@ assert SCHRANKENTEST [T= SYS1\{|zug_kommt, zug_raus, df_freigabe,  seg_senken, s
 
 
 -- Kein Zug ist dauerhaft blockiert
-ZUG2 = zug_rein?zId -> zug_raus!zId -> ZUG2
-assert ZUG2 [T= SYS1\{|df_anfrage, df_freigabe,  seg_senken, seg_heben, seg_unten, seg_oben, wr_signal, rd_signal, zug_kommt|} 
+ZUG_DEADLOCK_TEST = zug_rein?zId -> zug_raus!zId -> ZUG_DEADLOCK_TEST
+assert ZUG_DEADLOCK_TEST [T= SYS1\{|df_anfrage, df_freigabe,  seg_senken, seg_heben, seg_unten, seg_oben, wr_signal, rd_signal, zug_kommt|} 
 
 --assert ZUG2 [F= SYS1\{|df_anfrage, df_freigabe,  seg_senken, seg_heben, seg_unten, seg_oben, wr_signal, rd_signal, zug_kommt|} 
 
