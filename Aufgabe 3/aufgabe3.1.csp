@@ -10,7 +10,7 @@ X1 = SKIP |~| (a -> X0 [] b -> X2)
 X2 = a -> STOP [] b -> X3
 X3 = SKIP |~| (a -> X0 [] b -> X2)
 
-assert N0 [T= X0
-assert N0 [F= X0
-assert X0 [T= N0
-assert X0 [F= N0
+assert N0 [T= X0 -- fail b,b,b in N0 ok, in X0 nicht
+assert N0 [F= X0 -- fail
+assert X0 [T= N0 -- fail
+assert X0 [F= N0 -- fail
