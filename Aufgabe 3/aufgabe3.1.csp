@@ -10,7 +10,7 @@ X1 = SKIP |~| (a -> X0 [] b -> X2)
 X2 = a -> STOP [] b -> X3
 X3 = SKIP |~| (a -> X0 [] b -> X2)
 
-assert N0 [T= X0 -- fail b,b,b in N0 ok, in X0 nicht
-assert N0 [F= X0 -- fail
-assert X0 [T= N0 -- fail
-assert X0 [F= N0 -- fail
+assert N0 [T= X0 -- fail <b,b,b,SKIP> in X0 ok, in N0 nicht. Das problem liegt in SKIP. Bei X0 kommt ein SKIP nach b b b, bei N0 landet man im "Müllzustand"
+assert N0 [F= X0 -- fail. In X0 nach <b,b,a> keine weiteren Seqeunzen möglich (Endzustand). In N0 wird hingegen {SKIP, b, a} akzeptiert 
+assert X0 [T= N0 -- fail. In X0 ist <b,b,a> möglich. Danach wird nichts mehr akzeptiert. In N0 ist nach selber Sequnez noch z.B. b möglich. (<b,b,a,b>)
+assert X0 [F= N0 -- fail. N0 kann mehr Fehler als X0. N0 kann so schlaten, dass nach <b,b> der Müzustand erreicht wird und dann ist nie wieder ein SKIP möglich. X0 kann aber nach <b,b> ein SKIP. 
