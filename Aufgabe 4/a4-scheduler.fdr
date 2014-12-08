@@ -1,0 +1,22 @@
+nametype Id = {0,1,2,3} --Dummytask = 0
+nametype Timeslots = {1..10}
+channel set_idle, set_waiting, set_active, start_task : Id
+channel request: Id.Timeslots
+channel clock
+
+--Zustände der prozesse: 
+	--idle(will nichts tun),
+	--eager(will, ist aber nicht in wait list),
+	--waiting(wartet auf scheduler),
+	--active(tut etwas)
+
+TASK(id, remainingTime) = 
+SCHED() = 
+CLOCK() = 
+
+
+
+
+
+
+SYS = 
