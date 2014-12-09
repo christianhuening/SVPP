@@ -1,8 +1,23 @@
-nametype Id = {0,1,2,3} --Dummytask = 0
+nametype Id = {0..3} --Dummytask = 0
 nametype Timeslots = {1..10}
-channel set_idle, set_waiting, set_active, start_task : Id
-channel request: Id.Timeslots
+nametype Task_State = {"idle", "eager", "active", "waiting"}
+channel set_idle, set_waiting, set_active: Id
+channel start_task
+channel request, push, pop: Id.Timeslots
 channel clock
+
+
+
+FIFO(<>) = push?d -> FIFO(<d>)
+			[]
+		   pop.0.1 -> FIFO(<>)
+FIFO(<h>^t) = 
+	pop!h -> FIFO(t)
+	[]
+	push?d -> FIFO(<h>^t^<d>)
+
+	-- if count(s) < 2 then push nach d -> Merge d,h,s
+
 
 --Zustände der prozesse: 
 	--idle(will nichts tun),
@@ -10,14 +25,53 @@ channel clock
 	--waiting(wartet auf scheduler),
 	--active(tut etwas)
 
-TASK(id, remainingTime) = 
-SCHED() = 
-CLOCK() = 
+TASK(id, time, state) = (state == "idle") & start_task -> TASK(id,time,"eager")
+						[]
+						(state == "eager") & request!id.time -> set_waiting.id -> TASK(id,time,"waiting")
+						[]
+						(state == "active") & set_idle.id -> TASK(id,time,"idle")               -- Abarbeitung des Tasks in Task oder Scheduler
+						[]
+						(state == "waiting") & ((set_idle.id -> TASK(id,time,"idle"))
+												[]
+												 (set_active.id -> TASK(id,time,"active")))
+
+
+
+
+-- FIFO Scheduler
+ 
+SCHED(activeTask,remainingTime) = 
+	(request?taskId.taskTime -> push.taskId.taskTime -> set_waiting.taskId -> SCHED(activeTask,remainingTime))
+	[]
+	(clock -> (((remainingTime > 1) & SCHED(activeTask, remainingTime - 1))
+				[]
+				((activeTask!=0) & (remainingTime == 1) & set_idle.activeTask -> pop?newTask.newTime -> ((newTask!=0) & set_active.newTask -> SCHED(newTask,newTime)
+																										[]
+																										(newTask ==0) & SCHED(newTask,newTime))
+				)									
+				[]
+				(activeTask == 0) & pop?newTask.newTime -> ((activeTask != newTask) & set_active.newTask -> SCHED(newTask,newTime)
+															[]
+															(activeTask == newTask) & SCHED(newTask,newTime)
+															)
+				)
+	)
+		        
+
+
+--Timer
+CLOCK = clock -> CLOCK
 
 -- comment
 
 
 
+-- Task 1: 3, Task 2: 5, Task 3: 6
+-- Start Task: idle --> eager
+-- Momentan starten alle Tasks gleichzeitig, einfach durch ein gesynctes Start Task, TASKS laufen im Kreis
 
 
-SYS = 
+SYS2 =  FIFO(<1.3,2.5,3.6>) 
+--START_TASK -> start_task -> STOP
+TASKS = ((TASK(1,3,"idle") [|{|start_task|}|] TASK(2,5,"idle")) [|{|start_task|}|] TASK(3,6,"idle"))
+SYS = (FIFO(<>) [|{|push,pop|}|] (SCHED(0,0) [|{|clock|}|] CLOCK)) [|{|set_idle, set_waiting, set_active,request|}|] TASKS
