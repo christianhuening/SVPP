@@ -1,5 +1,5 @@
 nametype Id = {0..3} --Dummytask = 0
-nametype Timeslots = {1..2}
+nametype Timeslots = {1..10}
 nametype Task_State = {"idle", "eager", "active", "waiting"}
 channel set_idle, set_waiting, set_active: Id
 channel start_task
@@ -9,6 +9,8 @@ channel clock
 
 
 FIFO(<>) = push?d -> FIFO(<d>)
+			[]
+		   pop.0.1 -> FIFO(<>)
 FIFO(<h>^t) = 
 	pop!h -> FIFO(t)
 	[]
@@ -38,22 +40,21 @@ TASK(id, time, state) = (state == "idle") & start_task -> TASK(id,time,"eager")
 
 -- FIFO Scheduler
  
-SCHED(activeTask,remainingTime,queueCounter) = 
-	(request?taskId.taskTime -> push.taskId.taskTime -> set_waiting.taskId -> SCHED(activeTask,remainingTime, queueCounter +1))
+SCHED(activeTask,remainingTime) = 
+	(request?taskId.taskTime -> push.taskId.taskTime -> set_waiting.taskId -> SCHED(activeTask,remainingTime))
 	[]
-	(clock -> (((remainingTime > 1) & SCHED(activeTask, remainingTime - 1, queueCounter))
-					[]
-				((activeTask!=0) & (remainingTime == 1) & set_idle.activeTask -> (((queueCounter > 0) & pop?newTask.newTime -> set_active.newTask -> SCHED(newTask,newTime,queueCounter -1))
-																				[]					
-																				((queueCounter == 0) & SCHED(0,0,queueCounter)))
-				)								
-					[]
-				((activeTask == 0) & ((queueCounter > 0) & pop?newTask.newTime -> set_active.newTask -> SCHED(newTask,newTime,queueCounter-1)
-									  []
-									((queueCounter == 0) & SCHED(activeTask,remainingTime,queueCounter))
-									)
+	(clock -> (((remainingTime > 1) & SCHED(activeTask, remainingTime - 1))
+				[]
+				((activeTask!=0) & (remainingTime == 1) & set_idle.activeTask -> pop?newTask.newTime -> ((newTask!=0) & set_active.newTask -> SCHED(newTask,newTime)
+																										[]
+																										(newTask ==0) & SCHED(newTask,newTime))
+				)									
+				[]
+				(activeTask == 0) & pop?newTask.newTime -> ((activeTask != newTask) & set_active.newTask -> SCHED(newTask,newTime)
+															[]
+															(activeTask == newTask) & SCHED(newTask,newTime)
+															)
 				)
-			  )
 	)
 		        
 
@@ -70,12 +71,7 @@ CLOCK = clock -> CLOCK
 -- Momentan starten alle Tasks gleichzeitig, einfach durch ein gesynctes Start Task, TASKS laufen im Kreis
 
 
- 
+SYS2 =  FIFO(<1.3,2.5,3.6>) 
 --START_TASK -> start_task -> STOP
-TASKS = ((TASK(1,1,"idle") [|{|start_task|}|] TASK(2,1,"idle")) [|{|start_task|}|] TASK(3,1,"idle"))
-SYS = (FIFO(<>) [|{|push,pop|}|] (SCHED(0,0,0) [|{|clock|}|] CLOCK)) [|{|set_idle, set_waiting, set_active,request|}|] TASKS
-
-DEADLOCK1 = start_task -> request?x?y -> set_idle.x-> start_task -> STOP
-TESTSYS = request?x1?x2 -> request?y1?y2 -> request?z1?z2 -> set_active.x1 -> STOP
-
-assert SYS\{|set_waiting, set_active, push, pop,clock|} [T= DEADLOCK1 
+TASKS = ((TASK(1,3,"idle") [|{|start_task|}|] TASK(2,5,"idle")) [|{|start_task|}|] TASK(3,6,"idle"))
+SYS = (FIFO(<>) [|{|push,pop|}|] (SCHED(0,0) [|{|clock|}|] CLOCK)) [|{|set_idle, set_waiting, set_active,request|}|] TASKS
