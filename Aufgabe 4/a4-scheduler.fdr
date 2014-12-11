@@ -1,19 +1,26 @@
-nametype Id = {0..3} --Dummytask = 0
-nametype Timeslots = {1..10}
+nametype Id = {1..1} --Dummytask = 0
+nametype Timeslots = {1..2}
 nametype Task_State = {"idle", "eager", "active", "waiting"}
 channel set_idle, set_waiting, set_active: Id
 channel start_task
 channel request, push, pop: Id.Timeslots
 channel clock
 
+my_compress(p) =
+  let
+    transparent normal, diamond
+  within normal(diamond(p))
+
 
 
 FIFO(<>) = push?d -> FIFO(<d>)
 			
-FIFO(<h>^t) = 
-	pop!h -> FIFO(t)
+FIFO(s) = 
+	pop!head(s) -> FIFO(tail(s))
 	[]
-	push?d -> FIFO(<h>^t^<d>)
+	(#s<1) & push?d -> FIFO(s^<d>)
+
+
 
 	-- if count(s) < 2 then push nach d -> Merge d,h,s
 
@@ -28,7 +35,7 @@ TASK(id, time, state) = (state == "idle") & start_task -> TASK(id,time,"eager")
 						[]
 						(state == "eager") & request!id.time -> set_waiting.id -> TASK(id,time,"waiting")
 						[]
-						(state == "active") & set_idle.id -> TASK(id,time,"idle")               -- Abarbeitung des Tasks in Task oder Scheduler
+						(state == "active") & set_idle.id -> SKIP--TASK(id,time,"idle")               -- Abarbeitung des Tasks in Task oder Scheduler
 						[]
 						(state == "waiting") & (set_active.id -> TASK(id,time,"active"))
 
@@ -38,25 +45,18 @@ TASK(id, time, state) = (state == "idle") & start_task -> TASK(id,time,"eager")
 -- FIFO Scheduler
  
 
-SCHED(activeTask,remainingTime,queueCounter) =
+SCHED(activeTask, remainingTime, queueCounter) =
 	(request?taskId.taskTime -> push.taskId.taskTime -> set_waiting.taskId -> SCHED(activeTask,remainingTime, queueCounter +1))
 		[]
- 	(clock -> 
- 		(
-	 		((remainingTime > 1) & SCHED(activeTask, remainingTime - 1, queueCounter))
-	 								[]
-	 		((activeTask!=0) & (remainingTime == 1) & set_idle.activeTask -> 
-	 												(((queueCounter > 0) & pop?newTask.newTime -> set_active.newTask -> SCHED(newTask,newTime,queueCounter -1))
-																		 []	
-													((queueCounter == 0) & SCHED(0,0,queueCounter)))
-	 		)
-	 								[]
-	 		((activeTask == 0) & ((queueCounter > 0) & pop?newTask.newTime -> set_active.newTask -> SCHED(newTask,newTime,queueCounter-1)
-										[]
-								 ((queueCounter == 0) & SCHED(activeTask,remainingTime,queueCounter)))
-			)
-		)
-	)	
+	((remainingTime >= 1) & clock -> SCHED(activeTask, remainingTime - 1, queueCounter)) -- Task abarbeiten
+		[]
+	((activeTask!=0 and remainingTime == 0 and queueCounter > 0) & set_idle.activeTask -> pop?newTask.newTime -> set_active.newTask -> SCHED(newTask,newTime,queueCounter -1))
+ 		[]	
+	((activeTask!=0 and remainingTime == 0 and queueCounter <= 0) & SCHED(0,0,0))
+		[]
+	((activeTask == 0 and queueCounter > 0) & pop?newTask.newTime -> set_active.newTask -> SCHED(newTask,newTime,queueCounter-1))
+		
+		
 		        
 
 
@@ -75,10 +75,38 @@ CLOCK = clock -> CLOCK
 SYS2 =  FIFO(<1.3,2.5,3.6>) 
 --START_TASK -> start_task -> STOP
 TASKS = ((TASK(1,3,"idle") [|{|start_task|}|] TASK(2,5,"idle")) [|{|start_task|}|] TASK(3,6,"idle"))
-SYS = (FIFO(<>) [|{|push,pop|}|] (SCHED(0,0,0) [|{|clock|}|] CLOCK)) [|{|set_idle, set_waiting, set_active,request|}|] TASKS
+--SYS = (	
+--		(SCHED(0,0,0) [|{|clock|}|] CLOCK) 
+--			[|{|push,pop|}|]  
+--		FIFO(<>) 
+--	  ) 
+--		[|{|set_idle, set_waiting, set_active,request|}|] 
+--	  TASK(1,1,"idle")
 
-FIFOTEST = push!1.1 -> push!2.2 -> pop.1.1 -> pop.2.2 -> STOP
-FIFOTESTSYS = FIFOTEST [|{|push,pop|}|] FIFO(<>)
+SYS = (FIFO(<>) ||| CLOCK ||| TASK(1,1,"idle"))
+		[|{|set_idle, set_waiting, set_active,request, clock, push, pop|}|] 
+	SCHED(0,0,0)
 
-assert FIFOTEST [T= FIFO(<>)
-assert FIFO(<>) [T= FIFOTEST
+COMPRESSED_SYS = my_compress((my_compress(FIFO(<>)) ||| CLOCK ||| TASK(1,2,"idle")))
+		[|{|set_idle, set_waiting, set_active,request, clock, push, pop|}|] 
+	my_compress(SCHED(0,0,0))  
+
+
+SIMPLETASK = push!1.1 -> pop!1.1 -> STOP
+
+SIMPLESYS = request.1.1 -> set_active.1 -> set_idle.1 -> STOP
+
+--assert SIMPLETASK [T= my_compress(FIFO(<>))
+--assert SIMPLETASK [T= FIFO(<>)
+assert my_compress(FIFO(<>)) [T= SIMPLETASK
+assert FIFO(<>) [T= SIMPLETASK
+
+assert my_compress(SYS) [T= SIMPLESYS
+assert COMPRESSED_SYS :[ deadlock free [F] ]
+assert my_compress(SYS) :[ deadlock free [F] ]
+assert FIFO(<>) :[ deadlock free [F] ]
+assert TASK(1,1,"idle") :[ deadlock free [F] ]
+assert SCHED(0,0,0) [|{|push, pop|}|] FIFO(<>) :[ deadlock free [F] ]
+--assert FIFOTEST [F= FIFO(<>)
+--assert FIFO(<>) [F= FIFOTEST
+
