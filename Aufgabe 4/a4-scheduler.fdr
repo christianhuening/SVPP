@@ -45,16 +45,22 @@ TASK(id, time, state) = (state == "idle") & start_task -> TASK(id,time,"eager")
 -- FIFO Scheduler
  
 
-SCHED(activeTask, remainingTime, queueCounter) =
-	(request?taskId.taskTime -> push.taskId.taskTime -> set_waiting.taskId -> SCHED(activeTask,remainingTime, queueCounter +1))
+SCHED(activeTask, remainingTime, queue) =
+	(request?taskId.taskTime -> set_waiting.taskId -> SCHED(activeTask,remainingTime, queue^<taskId.taskTime>))
 		[]
-	((remainingTime >= 1) & clock -> SCHED(activeTask, remainingTime - 1, queueCounter)) -- Task abarbeiten
+	((remainingTime >= 1) & clock -> SCHED(activeTask, remainingTime - 1, queue)) -- Task abarbeiten
 		[]
-	((activeTask!=0 and remainingTime == 0 and queueCounter > 0) & set_idle.activeTask -> pop?newTask.newTime -> set_active.newTask -> SCHED(newTask,newTime,queueCounter -1))
+	((activeTask!=0 and remainingTime == 0 and not null(queue)) & set_idle.activeTask 
+		-> let (newTask.newTime) = head(queue)
+			within
+		 	set_active.newTask -> SCHED(newTask,newTime, tail(queue)))
  		[]	
-	((activeTask!=0 and remainingTime == 0 and queueCounter <= 0) & SCHED(0,0,0))
+	((activeTask!=0 and remainingTime == 0 and null(queue)) & SCHED(0,0,<>))
 		[]
-	((activeTask == 0 and queueCounter > 0) & pop?newTask.newTime -> set_active.newTask -> SCHED(newTask,newTime,queueCounter-1))
+	((activeTask == 0 and not null(queue)) & 
+			let (newTask.newTime) = head(queue)
+			within
+		 	set_active.newTask -> SCHED(newTask, newTime, tail(queue)))
 		
 		
 		        
@@ -63,33 +69,19 @@ SCHED(activeTask, remainingTime, queueCounter) =
 --Timer
 CLOCK = clock -> CLOCK
 
--- comment
-
-
-
--- Task 1: 3, Task 2: 5, Task 3: 6
--- Start Task: idle --> eager
--- Momentan starten alle Tasks gleichzeitig, einfach durch ein gesynctes Start Task, TASKS laufen im Kreis
-
 
 SYS2 =  FIFO(<1.3,2.5,3.6>) 
 --START_TASK -> start_task -> STOP
 TASKS = ((TASK(1,3,"idle") [|{|start_task|}|] TASK(2,5,"idle")) [|{|start_task|}|] TASK(3,6,"idle"))
---SYS = (	
---		(SCHED(0,0,0) [|{|clock|}|] CLOCK) 
---			[|{|push,pop|}|]  
---		FIFO(<>) 
---	  ) 
---		[|{|set_idle, set_waiting, set_active,request|}|] 
---	  TASK(1,1,"idle")
+
 
 SYS = (FIFO(<>) ||| CLOCK ||| TASK(1,1,"idle"))
 		[|{|set_idle, set_waiting, set_active,request, clock, push, pop|}|] 
-	SCHED(0,0,0)
+	SCHED(0,0,<>)
 
-COMPRESSED_SYS = my_compress((my_compress(FIFO(<>)) ||| CLOCK ||| TASK(1,2,"idle")))
-		[|{|set_idle, set_waiting, set_active,request, clock, push, pop|}|] 
-	my_compress(SCHED(0,0,0))  
+COMPRESSED_SYS = my_compress((CLOCK ||| TASK(1,2,"idle")))
+		[|{|set_idle, set_waiting, set_active,request, clock|}|] 
+	my_compress(SCHED(0,0,<>))  
 
 
 SIMPLETASK = push!1.1 -> pop!1.1 -> STOP
@@ -106,7 +98,7 @@ assert COMPRESSED_SYS :[ deadlock free [F] ]
 assert my_compress(SYS) :[ deadlock free [F] ]
 assert FIFO(<>) :[ deadlock free [F] ]
 assert TASK(1,1,"idle") :[ deadlock free [F] ]
-assert SCHED(0,0,0) [|{|push, pop|}|] FIFO(<>) :[ deadlock free [F] ]
+assert SCHED(0,0,<>) [|{|push, pop|}|] FIFO(<>) :[ deadlock free [F] ]
 --assert FIFOTEST [F= FIFO(<>)
 --assert FIFO(<>) [F= FIFOTEST
 
