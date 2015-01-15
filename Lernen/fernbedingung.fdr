@@ -1,0 +1,30 @@
+nametype device = {"d", "t"}
+nametype command = {"on","off","up","down"}
+channel send : device.command
+channel select
+
+D(state) = (state == "off") & send."d"."on" -> D("on")
+			[]
+			(state == "on") & send."d"."off" -> D("off")
+			[]
+			(state == "on") & send."d"."up" -> D("on")
+			[]
+			(state == "on") & send."d"."down" -> D("on")
+
+T(state) = (state == "off") & send."t"."on" -> T("on")
+			[]
+			(state == "on") & send."t"."off" -> T("off")
+			[]
+			(state == "on") & send."t"."up" -> T("on")
+			[]
+			(state == "on") & send."t"."down" -> T("on")
+
+F(device) = (select ->(
+						(device == "d") & F("t")
+						[]
+						(device == "t") & F("d") 
+					  ))
+			[]
+			send.device?x:command -> F(device)
+
+SYS = (D("off") ||| T("off")) [|{|send|}|] F("t")
