@@ -1,0 +1,48 @@
+-- CHANNEL UND KONSTANTEN
+channel sig_open,sig_closed, sig_blocked, sig_arrived, sig_away
+channel cmd_open, cmd_close
+channel button_close, button_open
+channel count
+
+delay_1 = 10
+delay_2 = 5
+
+-- UMGEBUNG
+DSENSOR1 = sig_open -> DSENSOR1 [] sig_closed -> DSENSOR1
+DSENSOR2 = sig_blocked -> DSENSOR2
+LSENSOR = sig_arrived -> LSENSOR [] sig_away -> LSENSOR
+
+AKTUATOR = cmd_open -> AKTUATOR [] cmd_close -> AKTUATOR
+
+BUTTON1 = button_close -> BUTTON1
+BUTTON2 = button_open -> BUTTON2
+
+
+-- TÜRSTEUERUNG
+START_STEUERUNG = CLOSED
+
+CLOSED = sig_away -> MOVING
+		[]
+		 (button_open -> cmd_open -> OPENING)
+
+OPEN = (button_close -> TIMER(delay_2);CLOSING)
+		[]
+	   (TIMER(delay_1);CLOSING)
+
+CLOSING = (sig_blocked -> cmd_open -> OPENING )
+		  [] (button_open-> cmd_open -> OPENING)
+		  [] (sig_closed -> CLOSED)
+
+OPENING = sig_open -> OPEN 
+
+MOVING = sig_arrived -> CLOSED
+
+TIMER(t) = (t!=0)&count -> TIMER(t-1)
+			[]
+			(t==0)&SKIP
+
+ALL =  {|sig_open,sig_closed, sig_blocked, sig_arrived, sig_away,cmd_open, cmd_close,button_close, button_open|}
+
+--SYSTEM
+SUROUNDING = (DSENSOR1 ||| DSENSOR2 ||| LSENSOR ||| AKTUATOR ||| BUTTON2 ||| BUTTON1)
+SYS = SUROUNDING [|ALL|] START_STEUERUNG

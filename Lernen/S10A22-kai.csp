@@ -1,0 +1,22 @@
+channel return_ptime: Int
+channel play, pause, stop, resume, next_chap, prev_chap,get_ptime, clock
+
+START_VIDEO = STOPPED
+
+STOPPED = play -> PLAYING(0)
+
+PLAYING(ptime) = pause -> PAUSED(ptime)
+				[]
+                next_chap -> PLAYING(ptime)
+                []
+                prev_chap -> PLAYING(ptime)
+                []
+                get_ptime-> return_ptime.ptime -> PLAYING(ptime)
+                []
+                stop -> STOPPED
+                []
+                CLOCK_COUNTER;PLAYING(ptime + 1)
+
+PAUSED(ptime) = resume -> PLAYING(ptime)
+
+CLOCK_COUNTER = clock -> SKIP

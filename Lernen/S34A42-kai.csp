@@ -1,0 +1,16 @@
+channel a,b,c
+
+P = (a->b->SKIP) \ {b}
+Q = P |~| (a->c->STOP)
+R = a -> b -> STOP
+
+
+assert Q [F= P
+assert P [F= Q
+assert Q [F= Q
+
+assert R [F= P
+assert P [F= R
+
+assert Q [F= R
+assert R [F= Q

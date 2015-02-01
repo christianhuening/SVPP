@@ -1,0 +1,27 @@
+nametype KId = {0,1}
+
+channel enter_restaurant, leave_restaurant, put_jacket_on, take_jacket_off, eat
+channel give_jacket, take_jacket, give_ticket, take_ticket: KId
+
+
+KUNDE(kId) = enter_restaurant -> take_jacket_off -> give_jacket!kId -> take_ticket?tId -> eat -> give_ticket!tId -> take_jacket.kId -> leave_restaurant -> STOP
+
+GARDEROBIER = take_jacket?kId -> give_ticket!kId -> GARDEROBIER
+				[]
+			  take_ticket?kId -> give_jacket.kId -> GARDEROBIER
+
+A = {|give_jacket, take_jacket, give_ticket, take_ticket|}
+
+KUNDEN = KUNDE(0) ||| KUNDE(1)
+
+SYS = GARDEROBIER [|A|] KUNDEN
+
+--take_ticket.1 nicht vor give_ticket.1
+TEST = give_ticket?x:KId -> take_ticket!x -> STOP
+TEST_NEG = take_ticket.1 -> give_ticket.1 -> STOP
+
+HIDING = {|enter_restaurant, leave_restaurant, put_jacket_on, take_jacket_off, eat, give_jacket, take_jacket|}
+
+assert TEST [T= SYS\HIDING
+assert not SYS\HIDING [T= TEST
+
